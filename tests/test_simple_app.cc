@@ -4,8 +4,8 @@ using namespace ps;
 int num = 0;
 
 void ReqHandle(const SimpleData& req, SimpleApp* app) {
-  CHECK_EQ(req.head, 1);
-  CHECK_EQ(req.body, "test");
+  DMLC_CHECK_EQ(req.head, 1);
+  DMLC_CHECK_EQ(req.body, "test");
   app->Response(req);
   ++ num;
 }
@@ -30,6 +30,6 @@ int main(int argc, char *argv[]) {
 
   Finalize(0, true);
 
-  CHECK_EQ(num, n);
+  DMLC_CHECK_EQ(num, n);
   return 0;
 }

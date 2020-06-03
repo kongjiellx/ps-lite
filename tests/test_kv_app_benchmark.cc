@@ -13,13 +13,13 @@ void EmptyHandler(const KVMeta &req_meta, const KVPairs<Val> &req_data, KVServer
   } else {
     auto iter = mem_map.find(0);
     if(iter==mem_map.end()){
-      LOG(INFO) << "init...";
+      DMLC_LOG(INFO) << "init...";
       KVPairs<float> res;
       res.keys = req_data.keys;
       res.vals.resize(req_data.keys.size());
       server->Response(req_meta, res);
     }else{
-      LOG(INFO) << "in-place memory reuse";
+      DMLC_LOG(INFO) << "in-place memory reuse";
       KVPairs<float> *res_ptr = &iter->second;
       res_ptr->keys = req_data.keys;
       res_ptr->vals.resize(req_data.keys.size());

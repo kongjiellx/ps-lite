@@ -211,7 +211,7 @@ struct Message {
    */
   template <typename V>
   void AddData(const SArray<V>& val) {
-    CHECK_EQ(data.size(), meta.data_type.size());
+    DMLC_CHECK_EQ(data.size(), meta.data_type.size());
     meta.data_type.push_back(GetDataType<V>());
     SArray<char> bytes(val);
     meta.data_size += bytes.size();

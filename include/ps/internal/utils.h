@@ -51,7 +51,7 @@ inline int GetEnv(const char *key, int default_val) {
   void operator=(const TypeName&)
 #endif
 
-#define LL LOG(ERROR)
+#define LL DMLC_LOG(ERROR)
 
 }  // namespace ps
 #endif  // PS_INTERNAL_UTILS_H_

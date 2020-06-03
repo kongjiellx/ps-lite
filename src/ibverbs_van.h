@@ -91,8 +91,8 @@ class SimpleMempool {
     struct ibv_mr *mr;
     char *p = reinterpret_cast<char *>(aligned_alloc(kAlignment, size));
     total_allocated_size += size;
-    CHECK(p);
-    CHECK(mr = ibv_reg_mr(pd, p, size,
+    DMLC_CHECK(p);
+    DMLC_CHECK(mr = ibv_reg_mr(pd, p, size,
                           IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE));
     // this mr is associated with memory address range [p, p+size]
     mr_list.emplace(p + size, mr);
@@ -103,7 +103,7 @@ class SimpleMempool {
   ~SimpleMempool() {
     std::lock_guard<std::mutex> lk(mu_);
     for (auto it = mr_list.begin(); it != mr_list.end(); it++) {
-      CHECK_EQ(ibv_dereg_mr(it->second), 0);
+      DMLC_CHECK_EQ(ibv_dereg_mr(it->second), 0);
       free(it->second->addr);
     }
   }
@@ -133,9 +133,9 @@ class SimpleMempool {
       }
       char *p =
           reinterpret_cast<char *>(aligned_alloc(kAlignment, new_mem_size));
-      CHECK(p);
+      DMLC_CHECK(p);
       struct ibv_mr *mr;
-      CHECK(mr = ibv_reg_mr(pd_, p, new_mem_size,
+      DMLC_CHECK(mr = ibv_reg_mr(pd_, p, new_mem_size,
                             IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE));
       mr_list.emplace(p + new_mem_size, mr);
       free_list.emplace(new_mem_size, p);
@@ -145,14 +145,14 @@ class SimpleMempool {
       total_allocated_size += new_mem_size;
     }
 
-    CHECK_NE(free_list.end(), it) << "Not enough memory";
-    CHECK_GE(it->first, proper_size);
+    DMLC_CHECK_NE(free_list.end(), it) << "Not enough memory";
+    DMLC_CHECK_GE(it->first, proper_size);
 
     char *addr = it->second;
     size_t space_left = it->first - proper_size;
 
     free_list.erase(it);
-    CHECK_EQ(used_list.find(addr), used_list.end())
+    DMLC_CHECK_EQ(used_list.find(addr), used_list.end())
         << "Address is already allocated";
 
     used_list.emplace(addr, proper_size);
@@ -173,7 +173,7 @@ class SimpleMempool {
     std::lock_guard<std::mutex> lk(mu_);
 
     auto it = used_list.find(addr);
-    CHECK_NE(used_list.end(), it)
+    DMLC_CHECK_NE(used_list.end(), it)
         << "Cannot find info about address: " << (uintptr_t)addr;
 
     size_t size = it->second;
@@ -208,7 +208,7 @@ class SimpleMempool {
   // Convert the memory address to its associated RDMA memory region
   inline struct ibv_mr *Addr2MR(char *addr) {
     auto it = mr_list.lower_bound(addr);
-    CHECK_NE(it, mr_list.end()) << "cannot find the associated memory region";
+    DMLC_CHECK_NE(it, mr_list.end()) << "cannot find the associated memory region";
     return it->second;
   }
 };
@@ -219,7 +219,7 @@ class Block {
       : pool(pool), addr(addr), counter(count) {}
 
   ~Block() {
-    CHECK_EQ(counter, 0);
+    DMLC_CHECK_EQ(counter, 0);
     pool->Free(addr);
   }
 
@@ -319,7 +319,7 @@ class AddressPool {
   T *GetAddressAndRelease(uint32_t index) {
     std::lock_guard<std::mutex> lk(mu_);
     T *ptr = table_[index];
-    CHECK(ptr);
+    DMLC_CHECK(ptr);
     indices_.push(index);
     table_[index] = nullptr;
     return ptr;
@@ -327,10 +327,10 @@ class AddressPool {
 
   uint32_t StoreAddress(T *ptr) {
     std::lock_guard<std::mutex> lk(mu_);
-    CHECK(ptr);
+    DMLC_CHECK(ptr);
     uint32_t idx = indices_.front();
     indices_.pop();
-    CHECK_EQ(table_[idx], nullptr);
+    DMLC_CHECK_EQ(table_[idx], nullptr);
     table_[idx] = ptr;
     return idx;
   }
@@ -370,37 +370,37 @@ struct Endpoint {
         continue;
       }
       free(rx_ctx[i].buffer->addr);
-      CHECK_EQ(ibv_dereg_mr(rx_ctx[i].buffer), 0);
+      DMLC_CHECK_EQ(ibv_dereg_mr(rx_ctx[i].buffer), 0);
     }
 
     for (int i = 0; i < kStartDepth; ++i) {
       if (start_ctx[i].buffer) {
         free(start_ctx[i].buffer->addr);
-        CHECK_EQ(ibv_dereg_mr(start_ctx[i].buffer), 0);
+        DMLC_CHECK_EQ(ibv_dereg_mr(start_ctx[i].buffer), 0);
       }
     }
 
     for (int i = 0; i < kReplyDepth; ++i) {
       if (reply_ctx[i].buffer) {
         free(reply_ctx[i].buffer->addr);
-        CHECK_EQ(ibv_dereg_mr(reply_ctx[i].buffer), 0);
+        DMLC_CHECK_EQ(ibv_dereg_mr(reply_ctx[i].buffer), 0);
       }
     }
 
     for (int i = 0; i < kWriteDepth; ++i) {
       if (write_ctx[i].buffer) {
         free(write_ctx[i].buffer->addr);
-        CHECK_EQ(ibv_dereg_mr(write_ctx[i].buffer), 0);
+        DMLC_CHECK_EQ(ibv_dereg_mr(write_ctx[i].buffer), 0);
       }
     }
 
     rdma_destroy_qp(cm_id);
-    CHECK_EQ(rdma_destroy_id(cm_id), 0) << strerror(errno);
+    DMLC_CHECK_EQ(rdma_destroy_id(cm_id), 0) << strerror(errno);
   }
 
   void Disconnect() {
     std::unique_lock<std::mutex> lk(connect_mu);
-    CHECK_EQ(rdma_disconnect(cm_id), 0) << strerror(errno);
+    DMLC_CHECK_EQ(rdma_disconnect(cm_id), 0) << strerror(errno);
     cv.wait(lk, [this] { return status == IDLE; });
   }
 
@@ -411,9 +411,9 @@ struct Endpoint {
                              WRContextType type) {
     for (size_t i = 0; i < num; ++i) {
       void *buf = aligned_alloc(kAlignment, kMempoolChunkSize);
-      CHECK(buf);
+      DMLC_CHECK(buf);
       struct ibv_mr *mr = ibv_reg_mr(pd, buf, kMempoolChunkSize, 0);
-      CHECK(mr);
+      DMLC_CHECK(mr);
 
       ctx[i].type = type;
       ctx[i].buffer = mr;
@@ -434,7 +434,7 @@ struct Endpoint {
     attr.qp_type = IBV_QPT_RC;
     attr.sq_sig_all = 0;
 
-    CHECK_EQ(rdma_create_qp(cm_id, pd, &attr), 0)
+    DMLC_CHECK_EQ(rdma_create_qp(cm_id, pd, &attr), 0)
         << "Create RDMA queue pair failed";
 
     InitSendContextHelper(pd, start_ctx, &free_start_ctx, kStartDepth,
@@ -446,10 +446,10 @@ struct Endpoint {
 
     for (size_t i = 0; i < kRxDepth; ++i) {
       void *buf = aligned_alloc(kAlignment, kMempoolChunkSize);
-      CHECK(buf);
+      DMLC_CHECK(buf);
       struct ibv_mr *mr =
           ibv_reg_mr(pd, buf, kMempoolChunkSize, IBV_ACCESS_LOCAL_WRITE);
-      CHECK(mr);
+      DMLC_CHECK(mr);
 
       rx_ctx[i].type = kReceiveContext;
       rx_ctx[i].buffer = mr;
@@ -473,7 +473,7 @@ struct Endpoint {
     wr.sg_list = &sge;
     wr.num_sge = 1;
 
-    CHECK_EQ(ibv_post_recv(cm_id->qp, &wr, &bad_wr), 0)
+    DMLC_CHECK_EQ(ibv_post_recv(cm_id->qp, &wr, &bad_wr), 0)
         << "ibv_post_recv failed.";
   }
 };
@@ -490,7 +490,7 @@ class IBVerbsVan : public Van {
 
     if (event_channel_ == nullptr) {
       event_channel_ = rdma_create_event_channel();
-      CHECK(event_channel_) << "Create RDMA event channel failed";
+      DMLC_CHECK(event_channel_) << "Create RDMA event channel failed";
 
       cm_event_polling_thread_.reset(
           new std::thread(&IBVerbsVan::PollEvents, this));
@@ -505,7 +505,7 @@ class IBVerbsVan : public Van {
     Van::Stop();
 
     should_stop_ = true;
-    CHECK(should_stop_);
+    DMLC_CHECK(should_stop_);
 
     PS_VLOG(1) << "Stopping cq_polling_thread_.";
     cq_polling_thread_->join();
@@ -527,8 +527,8 @@ class IBVerbsVan : public Van {
     endpoints_.clear();
 
     PS_VLOG(1) << "Destroying cq and pd.";
-    CHECK(!ibv_destroy_cq(cq_)) << "Failed to destroy CQ";
-    CHECK(!ibv_destroy_comp_channel(comp_event_channel_))
+    DMLC_CHECK(!ibv_destroy_cq(cq_)) << "Failed to destroy CQ";
+    DMLC_CHECK(!ibv_destroy_comp_channel(comp_event_channel_))
         << "Failed to destroy channel";
 
     // TODO(changlan): ibv_dealloc_pd sometimes complains about busy resources
@@ -539,7 +539,7 @@ class IBVerbsVan : public Van {
   }
 
   int Bind(const Node &node, int max_retry) override {
-    CHECK(rdma_create_id(event_channel_, &listener_, nullptr, RDMA_PS_TCP) == 0)
+    DMLC_CHECK(rdma_create_id(event_channel_, &listener_, nullptr, RDMA_PS_TCP) == 0)
         << "Create RDMA connection identifier failed";
 
     struct sockaddr_in addr;
@@ -559,16 +559,16 @@ class IBVerbsVan : public Van {
         port = 10000 + rand_r(&seed) % 40000;
       }
     }
-    CHECK(rdma_listen(listener_, kRdmaListenBacklog) == 0)
+    DMLC_CHECK(rdma_listen(listener_, kRdmaListenBacklog) == 0)
         << "Listen RDMA connection failed: " << strerror(errno);
     return port;
   }
 
   void Connect(const Node &node) override {
     PS_VLOG(1) << "Connecting to " << my_node_.ShortDebugString();
-    CHECK_NE(node.id, node.kEmpty);
-    CHECK_NE(node.port, node.kEmpty);
-    CHECK(node.hostname.size());
+    DMLC_CHECK_NE(node.id, node.kEmpty);
+    DMLC_CHECK_NE(node.port, node.kEmpty);
+    DMLC_CHECK(node.hostname.size());
 
     // worker doesn't need to connect to the other workers. same for server
     if ((node.role == my_node_.role) && (node.id != my_node_.id)) {
@@ -591,7 +591,7 @@ class IBVerbsVan : public Van {
       endpoint->SetNodeID(node.id);
 
       struct addrinfo *remote_addr;
-      CHECK_EQ(
+      DMLC_CHECK_EQ(
           getaddrinfo(node.hostname.c_str(), std::to_string(node.port).c_str(),
                       nullptr, &remote_addr),
           0);
@@ -602,17 +602,17 @@ class IBVerbsVan : public Van {
 
         if (endpoint->cm_id != nullptr) {
           rdma_destroy_qp(endpoint->cm_id);
-          CHECK_EQ(rdma_destroy_id(endpoint->cm_id), 0) << strerror(errno);
+          DMLC_CHECK_EQ(rdma_destroy_id(endpoint->cm_id), 0) << strerror(errno);
           endpoint->cm_id = nullptr;
         }
 
-        CHECK_EQ(rdma_create_id(event_channel_, &endpoint->cm_id, nullptr,
+        DMLC_CHECK_EQ(rdma_create_id(event_channel_, &endpoint->cm_id, nullptr,
                                 RDMA_PS_TCP),
                  0)
             << "Create RDMA connection identifier failed";
         endpoint->cm_id->context = endpoint;
 
-        CHECK_EQ(rdma_resolve_addr(endpoint->cm_id, nullptr,
+        DMLC_CHECK_EQ(rdma_resolve_addr(endpoint->cm_id, nullptr,
                                    remote_addr->ai_addr, kTimeoutms),
                  0)
             << "Resolve RDMA address failed with errno: " << errno;
@@ -631,12 +631,12 @@ class IBVerbsVan : public Van {
 
   int SendMsg(const Message &msg) override {
     int remote_id = msg.meta.recver;
-    CHECK_NE(remote_id, Meta::kEmpty);
+    DMLC_CHECK_NE(remote_id, Meta::kEmpty);
 
     PBMeta meta;
     PackMetaPB(msg.meta, &meta);
 
-    CHECK_NE(endpoints_.find(remote_id), endpoints_.end());
+    DMLC_CHECK_NE(endpoints_.find(remote_id), endpoints_.end());
     Endpoint *endpoint = endpoints_[remote_id].get();
     MessageBuffer *msg_buf = new MessageBuffer();
 
@@ -644,7 +644,7 @@ class IBVerbsVan : public Van {
     size_t data_len = msg.meta.data_size;
     size_t total_len = meta_len + data_len;
 
-    CHECK(meta_len);
+    DMLC_CHECK(meta_len);
 
     // For control messages, inline the message content
     // into the START message.
@@ -678,7 +678,7 @@ class IBVerbsVan : public Van {
         if (it == allocated_mr_.end()) {
           allocated_mr_[p] = ibv_reg_mr(pd_, p, sa.size(), 0);
         }
-        CHECK(allocated_mr_[p]) << "Invalid memory region";
+        DMLC_CHECK(allocated_mr_[p]) << "Invalid memory region";
         msg_buf->mrs.push_back({allocated_mr_[p], sa.size()});
       }
     }
@@ -717,7 +717,7 @@ class IBVerbsVan : public Van {
     wr.send_flags = IBV_SEND_SIGNALED;
     wr.sg_list = &sge;
     wr.num_sge = 1;
-    CHECK_EQ(ibv_post_send(endpoint->cm_id->qp, &wr, &bad_wr), 0)
+    DMLC_CHECK_EQ(ibv_post_send(endpoint->cm_id->qp, &wr, &bad_wr), 0)
         << strerror(errno);
 
     return total_len;
@@ -768,10 +768,10 @@ class IBVerbsVan : public Van {
  private:
   void InitContext(struct ibv_context *context) {
     context_ = context;
-    CHECK(context_) << "ibv_context* empty";
+    DMLC_CHECK(context_) << "ibv_context* empty";
 
     pd_ = ibv_alloc_pd(context_);
-    CHECK(pd_) << "Failed to allocate protection domain";
+    DMLC_CHECK(pd_) << "Failed to allocate protection domain";
 
     mempool_.reset(new SimpleMempool(pd_));
 
@@ -781,8 +781,8 @@ class IBVerbsVan : public Van {
     cq_ = ibv_create_cq(context_, kMaxConcurrentWorkRequest * 2, NULL,
                         comp_event_channel_, 0);
 
-    CHECK(cq_) << "Failed to create completion queue";
-    CHECK(!ibv_req_notify_cq(cq_, 0)) << "Failed to request CQ notification";
+    DMLC_CHECK(cq_) << "Failed to create completion queue";
+    DMLC_CHECK(!ibv_req_notify_cq(cq_, 0)) << "Failed to request CQ notification";
   }
 
   void ReleaseWorkRequestContext(WRContext *context, Endpoint *endpoint) {
@@ -800,7 +800,7 @@ class IBVerbsVan : public Van {
         endpoint->PostRecv(context);
         break;
       default:
-        CHECK(0);
+        DMLC_CHECK(0);
     }
   }
 
@@ -809,9 +809,9 @@ class IBVerbsVan : public Van {
     struct ibv_wc wc[kMaxConcurrentWorkRequest];
     while (!should_stop_.load()) {
       int ne = ibv_poll_cq(cq_, kMaxConcurrentWorkRequest, wc);
-      CHECK_GE(ne, 0);
+      DMLC_CHECK_GE(ne, 0);
       for (int i = 0; i < ne; ++i) {
-        CHECK(wc[i].status == IBV_WC_SUCCESS)
+        DMLC_CHECK(wc[i].status == IBV_WC_SUCCESS)
             << "Failed status \n"
             << ibv_wc_status_str(wc[i].status) << " " << wc[i].status << " "
             << static_cast<uint64_t>(wc[i].wr_id) << " " << wc[i].vendor_err;
@@ -820,15 +820,15 @@ class IBVerbsVan : public Van {
         Endpoint *endpoint =
             reinterpret_cast<Endpoint *>(context->private_data);
 
-        CHECK(endpoint);
+        DMLC_CHECK(endpoint);
 
         switch (wc[i].opcode) {
           case IBV_WC_SEND:
-            // LOG(INFO) << "opcode: IBV_WC_SEND";
+            // DMLC_LOG(INFO) << "opcode: IBV_WC_SEND";
             ReleaseWorkRequestContext(context, endpoint);
             break;
           case IBV_WC_RDMA_WRITE: {
-            // LOG(INFO) << "opcode: IBV_WC_RDMA_WRITE";
+            // DMLC_LOG(INFO) << "opcode: IBV_WC_RDMA_WRITE";
             // Note: This is not a struct ibv_mr*
             MessageBuffer *msg_buf =
                 *reinterpret_cast<MessageBuffer **>(context->buffer->addr);
@@ -837,19 +837,19 @@ class IBVerbsVan : public Van {
             ReleaseWorkRequestContext(context, endpoint);
           } break;
           case IBV_WC_RECV_RDMA_WITH_IMM: {
-            // LOG(INFO) << "opcode: IBV_WC_RECV_RDMA_WITH_IMM";
+            // DMLC_LOG(INFO) << "opcode: IBV_WC_RECV_RDMA_WITH_IMM";
             uint32_t addr_idx = wc[i].imm_data;
             BufferContext *buf_ctx = addr_pool_.GetAddressAndRelease(addr_idx);
             recv_buffers_.Push(std::make_tuple(endpoint, buf_ctx));
             ReleaseWorkRequestContext(context, endpoint);
           } break;
           case IBV_WC_RECV: {
-            CHECK(wc[i].wc_flags & IBV_WC_WITH_IMM);
+            DMLC_CHECK(wc[i].wc_flags & IBV_WC_WITH_IMM);
             uint32_t imm = wc[i].imm_data;
             struct ibv_mr *mr = context->buffer;
 
             if (imm == kRendezvousStart) {
-              // LOG(INFO) << "opcode: IBV_WC_RECV kRendezvousStart";
+              // DMLC_LOG(INFO) << "opcode: IBV_WC_RECV kRendezvousStart";
               RendezvousStart *req =
                   reinterpret_cast<RendezvousStart *>(mr->addr);
               BufferContext *buf_ctx = new BufferContext();
@@ -863,7 +863,7 @@ class IBVerbsVan : public Van {
               }
 
               char *buffer = mempool_->Alloc(len);
-              CHECK(buffer) << "Alloc for " << len
+              DMLC_CHECK(buffer) << "Alloc for " << len
                             << " bytes, data_num: " << req->data_num;
 
               buf_ctx->buffer = buffer;
@@ -898,11 +898,11 @@ class IBVerbsVan : public Van {
               wr.sg_list = &sge;
               wr.num_sge = 1;
 
-              CHECK_EQ(ibv_post_send(endpoint->cm_id->qp, &wr, &bad_wr), 0)
+              DMLC_CHECK_EQ(ibv_post_send(endpoint->cm_id->qp, &wr, &bad_wr), 0)
                   << "ibv_post_send failed.";
 
             } else if (imm == kRendezvousReply) {
-              // LOG(INFO) << "opcode: IBV_WC_RECV kRendezvousReply";
+              // DMLC_LOG(INFO) << "opcode: IBV_WC_RECV kRendezvousReply";
               RendezvousReply *resp =
                   reinterpret_cast<RendezvousReply *>(mr->addr);
               uint64_t remote_addr = resp->addr;
@@ -922,7 +922,7 @@ class IBVerbsVan : public Van {
               size_t num_sge = 1;
               for (auto &pair : msg_buf->mrs) {
                 size_t length = pair.second;
-                CHECK(length);
+                DMLC_CHECK(length);
                 sge[num_sge].addr =
                     reinterpret_cast<uint64_t>(pair.first->addr);
                 sge[num_sge].length = length;
@@ -952,16 +952,16 @@ class IBVerbsVan : public Van {
               wr.wr.rdma.remote_addr = remote_addr;
               wr.wr.rdma.rkey = rkey;
 
-              CHECK_EQ(ibv_post_send(endpoint->cm_id->qp, &wr, &bad_wr), 0)
+              DMLC_CHECK_EQ(ibv_post_send(endpoint->cm_id->qp, &wr, &bad_wr), 0)
                   << "ibv_post_send failed.";
 
             } else {
-              CHECK(0);
+              DMLC_CHECK(0);
             }
             ReleaseWorkRequestContext(context, endpoint);
           } break;
           default:
-            CHECK(0) << "Unexpected opcode: " << wc[i].opcode;
+            DMLC_CHECK(0) << "Unexpected opcode: " << wc[i].opcode;
         }
       }
     }
@@ -970,7 +970,7 @@ class IBVerbsVan : public Van {
   void PollEvents() {
     int flags = fcntl(event_channel_->fd, F_GETFL);
     int rc = fcntl(event_channel_->fd, F_SETFL, flags | O_NONBLOCK);
-    CHECK_GE(rc, 0);
+    DMLC_CHECK_GE(rc, 0);
     int error_flags = POLLERR | POLLHUP | POLLNVAL;
 
     while (!should_stop_.load()) {
@@ -978,15 +978,15 @@ class IBVerbsVan : public Van {
           .fd = event_channel_->fd, .events = POLLIN, .revents = 0};
       int ret = poll(&pfd, 1, 10);
 
-      CHECK_GE(ret, 0) << strerror(errno);
-      CHECK_EQ(pfd.revents & error_flags, 0);
+      DMLC_CHECK_GE(ret, 0) << strerror(errno);
+      DMLC_CHECK_EQ(pfd.revents & error_flags, 0);
 
       if (!(pfd.revents & POLLIN)) {
         continue;
       }
 
       struct rdma_cm_event *event;
-      CHECK_EQ(rdma_get_cm_event(event_channel_, &event), 0);
+      DMLC_CHECK_EQ(rdma_get_cm_event(event_channel_, &event), 0);
       // TODO(clan): Reorder the list according to the event frequency
       switch (event->event) {
         case RDMA_CM_EVENT_CONNECT_REQUEST:
@@ -1008,7 +1008,7 @@ class IBVerbsVan : public Van {
           OnRejected(event);
           break;
         default:
-          CHECK(0) << "OnEvent: unknown event " << event->event << " ("
+          DMLC_CHECK(0) << "OnEvent: unknown event " << event->event << " ("
                    << rdma_event_str(event->event) << ")";
       }
       rdma_ack_cm_event(event);
@@ -1020,9 +1020,9 @@ class IBVerbsVan : public Van {
     Endpoint *endpoint = reinterpret_cast<Endpoint *>(id->context);
 
     auto it = endpoints_.find(endpoint->node_id);
-    CHECK(it != endpoints_.end()) << "Connection not ready.";
-    CHECK_EQ(endpoint->status, Endpoint::CONNECTING);
-    CHECK_EQ(endpoint->cm_id, id);
+    DMLC_CHECK(it != endpoints_.end()) << "Connection not ready.";
+    DMLC_CHECK_EQ(endpoint->status, Endpoint::CONNECTING);
+    DMLC_CHECK_EQ(endpoint->cm_id, id);
 
     PS_VLOG(1) << "Connection rejected, retrying...";
     {
@@ -1034,13 +1034,13 @@ class IBVerbsVan : public Van {
 
   void OnConnectRequest(struct rdma_cm_event *event) {
     struct rdma_cm_id *id = event->id;
-    CHECK_NOTNULL(id);
+    DMLC_CHECK_NOTNULL(id);
 
-    CHECK_LE(sizeof(RequestContext), event->param.conn.private_data_len)
+    DMLC_CHECK_LE(sizeof(RequestContext), event->param.conn.private_data_len)
         << "RequestContext size mismatch. Actual: "
         << (size_t)event->param.conn.private_data_len
         << ", Expected: " << sizeof(RequestContext);
-    CHECK_NOTNULL(event->param.conn.private_data);
+    DMLC_CHECK_NOTNULL(event->param.conn.private_data);
 
     const RequestContext *remote_ctx = reinterpret_cast<const RequestContext *>(
         event->param.conn.private_data);
@@ -1069,14 +1069,14 @@ class IBVerbsVan : public Van {
     cm_params.private_data = &ctx;
     cm_params.private_data_len = sizeof(RequestContext);
 
-    CHECK_EQ(rdma_accept(id, &cm_params), 0)
+    DMLC_CHECK_EQ(rdma_accept(id, &cm_params), 0)
         << "Accept RDMA connection failed: " << strerror(errno);
   }
 
   // Resolve a route after address is resolved
   void OnAddrResolved(struct rdma_cm_event *event) {
     struct rdma_cm_id *id = event->id;
-    CHECK_EQ(rdma_resolve_route(id, kTimeoutms), 0)
+    DMLC_CHECK_EQ(rdma_resolve_route(id, kTimeoutms), 0)
         << "Resolve RDMA route failed";
   }
 
@@ -1103,21 +1103,21 @@ class IBVerbsVan : public Van {
     cm_params.private_data = &ctx;
     cm_params.private_data_len = sizeof(RequestContext);
 
-    CHECK_EQ(rdma_connect(id, &cm_params), 0)
+    DMLC_CHECK_EQ(rdma_connect(id, &cm_params), 0)
         << "RDMA connect failed" << strerror(errno);
   }
 
   void OnConnected(struct rdma_cm_event *event) {
     struct rdma_cm_id *id = event->id;
-    CHECK(id) << "rdma_cm_id not found.";
+    DMLC_CHECK(id) << "rdma_cm_id not found.";
     Endpoint *endpoint = reinterpret_cast<Endpoint *>(id->context);
-    CHECK(endpoint) << "Endpoint not found.";
+    DMLC_CHECK(endpoint) << "Endpoint not found.";
 
     if (cq_polling_thread_ == nullptr) {
       cq_polling_thread_.reset(new std::thread(&IBVerbsVan::PollCQ, this));
     }
 
-    CHECK_EQ(endpoint->cm_id, id);
+    DMLC_CHECK_EQ(endpoint->cm_id, id);
     {
       std::lock_guard<std::mutex> lk(endpoint->connect_mu);
       endpoint->status = Endpoint::CONNECTED;
@@ -1126,7 +1126,7 @@ class IBVerbsVan : public Van {
   }
 
   void OnDisconnected(struct rdma_cm_event *event) {
-    LOG(INFO) << "OnDisconnected from Node " << my_node_.id;
+    DMLC_LOG(INFO) << "OnDisconnected from Node " << my_node_.id;
     struct rdma_cm_id *id = event->id;
     Endpoint *endpoint = reinterpret_cast<Endpoint *>(id->context);
     {

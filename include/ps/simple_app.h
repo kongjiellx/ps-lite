@@ -81,7 +81,7 @@ class SimpleApp {
    * \param request_handle the request handle
    */
   virtual inline void set_request_handle(const Handle& request_handle) {
-    CHECK(request_handle) << "invalid request handle";
+    DMLC_CHECK(request_handle) << "invalid request handle";
     request_handle_ = request_handle;
   }
 
@@ -90,7 +90,7 @@ class SimpleApp {
    * \param response_handle the response handle
    */
   virtual inline void set_response_handle(const Handle& response_handle) {
-    CHECK(response_handle) << "invalid response handle";
+    DMLC_CHECK(response_handle) << "invalid response handle";
     response_handle_ = response_handle;
   }
 
@@ -173,10 +173,10 @@ inline void SimpleApp::Process(const Message& msg) {
   recv.timestamp = msg.meta.timestamp;
   recv.customer_id = msg.meta.customer_id;
   if (msg.meta.request) {
-    CHECK(request_handle_);
+    DMLC_CHECK(request_handle_);
     request_handle_(recv, this);
   } else {
-    CHECK(response_handle_);
+    DMLC_CHECK(response_handle_);
     response_handle_(recv, this);
   }
 }

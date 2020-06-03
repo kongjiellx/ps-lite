@@ -60,7 +60,7 @@ class Van {
    * \brief return my node
    */
   inline const Node &my_node() const {
-    CHECK(ready_) << "call Start() first";
+    DMLC_CHECK(ready_) << "call Start() first";
     return my_node_;
   }
 

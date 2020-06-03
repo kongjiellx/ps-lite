@@ -1,7 +1,7 @@
 # Install dependencies
 
 URL1=https://raw.githubusercontent.com/mli/deps/master/build
-URL2=https://github.com/google/protobuf/releases/download/v3.5.1
+URL2=https://github.com/google/protobuf/releases/download/v3.8.0
 ifndef WGET
 WGET = wget
 endif
@@ -9,8 +9,8 @@ endif
 # protobuf
 PROTOBUF = ${DEPS_PATH}/include/google/protobuf/message.h
 ${PROTOBUF}:
-	$(eval FILE=protobuf-cpp-3.5.1.tar.gz)
-	$(eval DIR=protobuf-3.5.1)
+	$(eval FILE=protobuf-cpp-3.8.0.tar.gz)
+	$(eval DIR=protobuf-3.8.0)
 	rm -rf $(FILE) $(DIR)
 	$(WGET) $(URL2)/$(FILE) && tar --no-same-owner -zxf $(FILE)
 	cd $(DIR) && export CFLAGS=-fPIC && export CXXFLAGS=-fPIC && ./configure -prefix=$(DEPS_PATH) && $(MAKE) && $(MAKE) install
@@ -24,7 +24,7 @@ ${ZMQ}:
 	$(eval DIR=zeromq-4.1.4)
 	rm -rf $(FILE) $(DIR)
 	$(WGET) $(URL1)/$(FILE) && tar --no-same-owner -zxf $(FILE)
-	cd $(DIR) && export CFLAGS=-fPIC && export CXXFLAGS=-fPIC && ./configure -prefix=$(DEPS_PATH) --with-libsodium=no --with-libgssapi_krb5=no && $(MAKE) && $(MAKE) install
+	cd $(DIR) && export CFLAGS=-fPIC && export CXXFLAGS=-fPIC && ./configure -prefix=$(DEPS_PATH) --with-libsodium=yes --with-libgssapi_krb5=no && $(MAKE) && $(MAKE) install
 	rm -rf $(FILE) $(DIR)
 
 # lz4

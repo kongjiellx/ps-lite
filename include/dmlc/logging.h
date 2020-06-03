@@ -73,43 +73,26 @@ inline void InitLogging(const char* argv0) {
 }
 
 // Always-on checking
-#define CHECK(x)                                           \
+#define DMLC_CHECK(x)                                           \
   if (!(x))                                                \
     dmlc::LogMessageFatal(__FILE__, __LINE__).stream() << "Check "  \
       "failed: " #x << ' '
-#define CHECK_LT(x, y) CHECK((x) < (y))
-#define CHECK_GT(x, y) CHECK((x) > (y))
-#define CHECK_LE(x, y) CHECK((x) <= (y))
-#define CHECK_GE(x, y) CHECK((x) >= (y))
-#define CHECK_EQ(x, y) CHECK((x) == (y))
-#define CHECK_NE(x, y) CHECK((x) != (y))
-#define CHECK_NOTNULL(x) \
+#define DMLC_CHECK_LT(x, y) DMLC_CHECK((x) < (y))
+//#define CHECK_GT(x, y) DMLC_CHECK((x) > (y))
+#define DMLC_CHECK_LE(x, y) DMLC_CHECK((x) <= (y))
+#define DMLC_CHECK_GE(x, y) DMLC_CHECK((x) >= (y))
+#define DMLC_CHECK_EQ(x, y) DMLC_CHECK((x) == (y))
+#define DMLC_CHECK_NE(x, y) DMLC_CHECK((x) != (y))
+#define DMLC_CHECK_NOTNULL(x) \
   ((x) == NULL ? dmlc::LogMessageFatal(__FILE__, __LINE__).stream() << "Check  notnull: "  #x << ' ', (x) : (x)) // NOLINT(*)
-// Debug-only checking.
-#ifdef NDEBUG
-#define DCHECK(x) \
-  while (false) CHECK(x)
-#define DCHECK_LT(x, y) \
-  while (false) CHECK((x) < (y))
-#define DCHECK_GT(x, y) \
-  while (false) CHECK((x) > (y))
-#define DCHECK_LE(x, y) \
-  while (false) CHECK((x) <= (y))
-#define DCHECK_GE(x, y) \
-  while (false) CHECK((x) >= (y))
-#define DCHECK_EQ(x, y) \
-  while (false) CHECK((x) == (y))
-#define DCHECK_NE(x, y) \
-  while (false) CHECK((x) != (y))
-#else
-#define DCHECK(x) CHECK(x)
-#define DCHECK_LT(x, y) CHECK((x) < (y))
-#define DCHECK_GT(x, y) CHECK((x) > (y))
-#define DCHECK_LE(x, y) CHECK((x) <= (y))
-#define DCHECK_GE(x, y) CHECK((x) >= (y))
-#define DCHECK_EQ(x, y) CHECK((x) == (y))
-#define DCHECK_NE(x, y) CHECK((x) != (y))
-#endif  // NDEBUG
+
+//#define DCHECK(x) DMLC_CHECK(x)
+//#define DCHECK_LT(x, y) DMLC_CHECK((x) < (y))
+//#define DCHECK_GT(x, y) DMLC_CHECK((x) > (y))
+//#define DCHECK_LE(x, y) DMLC_CHECK((x) <= (y))
+//#define DCHECK_GE(x, y) DMLC_CHECK((x) >= (y))
+//#define DCHECK_EQ(x, y) DMLC_CHECK((x) == (y))
+//#define DCHECK_NE(x, y) DMLC_CHECK((x) != (y))
 
 #define LOG_INFO dmlc::LogMessage(__FILE__, __LINE__)
 #define LOG_ERROR LOG_INFO
@@ -118,28 +101,28 @@ inline void InitLogging(const char* argv0) {
 #define LOG_QFATAL LOG_FATAL
 
 // Poor man version of VLOG
-#define VLOG(x) LOG_INFO.stream()
+//#define VLOG(x) LOG_INFO.stream()
 
-#define LOG(severity) LOG_##severity.stream()
+#define DMLC_LOG(severity) LOG_##severity.stream()
 #define LG LOG_INFO.stream()
 #define LOG_IF(severity, condition) \
-  !(condition) ? (void)0 : dmlc::LogMessageVoidify() & LOG(severity)
+  !(condition) ? (void)0 : dmlc::LogMessageVoidify() & DMLC_LOG(severity)
 
 #ifdef NDEBUG
 #define LOG_DFATAL LOG_ERROR
 #define DFATAL ERROR
-#define DLOG(severity) true ? (void)0 : dmlc::LogMessageVoidify() & LOG(severity)
+#define DLOG(severity) true ? (void)0 : dmlc::LogMessageVoidify() & DMLC_LOG(severity)
 #define DLOG_IF(severity, condition) \
-  (true || !(condition)) ? (void)0 : dmlc::LogMessageVoidify() & LOG(severity)
+  (true || !(condition)) ? (void)0 : dmlc::LogMessageVoidify() & DMLC_LOG(severity)
 #else
 #define LOG_DFATAL LOG_FATAL
 #define DFATAL FATAL
-#define DLOG(severity) LOG(severity)
+#define DLOG(severity) DMLC_LOG(severity)
 #define DLOG_IF(severity, condition) LOG_IF(severity, condition)
 #endif
 
 // Poor man version of LOG_EVERY_N
-#define LOG_EVERY_N(severity, n) LOG(severity)
+//#define LOG_EVERY_N(severity, n) DMLC_LOG(severity)
 
 class DateLogger {
  public:
@@ -274,7 +257,7 @@ class LogMessageFatal {
     // throwing out of destructor is evil
     // hopefully we can do it here
     // also log the message before throw
-    LOG(ERROR) << log_stream_.str();
+    DMLC_LOG(ERROR) << log_stream_.str();
     throw Error(log_stream_.str());
   }
 

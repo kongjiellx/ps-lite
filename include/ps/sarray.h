@@ -75,7 +75,7 @@ class SArray {
    */
   template <typename W> void operator=(const SArray<W>& arr) {
     size_ = arr.size() * sizeof(W) / sizeof(V);
-    CHECK_EQ(size_ * sizeof(V), arr.size() * sizeof(W)) << "cannot be divided";
+    DMLC_CHECK_EQ(size_ * sizeof(V), arr.size() * sizeof(W)) << "cannot be divided";
     capacity_ = arr.capacity() * sizeof(W) / sizeof(V);
     ptr_ = std::shared_ptr<V>(arr.ptr(), reinterpret_cast<V*>(arr.data()));
   }
@@ -218,8 +218,8 @@ class SArray {
   /** \brief get the const shared pointer */
   inline const std::shared_ptr<V>& ptr() const { return ptr_; }
 
-  inline V back() const { CHECK(!empty()); return data()[size_-1]; }
-  inline V front() const { CHECK(!empty()); return data()[0]; }
+  inline V back() const { DMLC_CHECK(!empty()); return data()[size_ - 1]; }
+  inline V front() const { DMLC_CHECK(!empty()); return data()[0]; }
   inline V& operator[] (int i) { return data()[i]; }
   inline const V& operator[] (int i) const { return data()[i]; }
 
@@ -246,7 +246,7 @@ class SArray {
    * @return the segment [begin, end)
    */
   SArray<V> segment(size_t begin, size_t end) const {
-    CHECK_GE(end, begin); CHECK_LE(end, size());
+    DMLC_CHECK_GE(end, begin); DMLC_CHECK_LE(end, size());
     SArray<V> ret;
     ret.ptr_ = std::shared_ptr<V>(ptr_, data() + begin);
     ret.size_ = end - begin;

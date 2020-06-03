@@ -39,7 +39,7 @@ class ZMQVan : public Van {
     start_mu_.lock();
     if (context_ == nullptr) {
       context_ = zmq_ctx_new();
-      CHECK(context_ != NULL) << "create 0mq context failed";
+      DMLC_CHECK(context_ != NULL) << "create 0mq context failed";
       zmq_ctx_set(context_, ZMQ_MAX_SOCKETS, 65536);
     }
     start_mu_.unlock();
@@ -53,12 +53,12 @@ class ZMQVan : public Van {
     // close sockets
     int linger = 0;
     int rc = zmq_setsockopt(receiver_, ZMQ_LINGER, &linger, sizeof(linger));
-    CHECK(rc == 0 || errno == ETERM);
-    CHECK_EQ(zmq_close(receiver_), 0);
+    DMLC_CHECK(rc == 0 || errno == ETERM);
+    DMLC_CHECK_EQ(zmq_close(receiver_), 0);
     for (auto& it : senders_) {
       int rc = zmq_setsockopt(it.second, ZMQ_LINGER, &linger, sizeof(linger));
-      CHECK(rc == 0 || errno == ETERM);
-      CHECK_EQ(zmq_close(it.second), 0);
+      DMLC_CHECK(rc == 0 || errno == ETERM);
+      DMLC_CHECK_EQ(zmq_close(it.second), 0);
     }
     senders_.clear();
     zmq_ctx_destroy(context_);
@@ -67,7 +67,7 @@ class ZMQVan : public Van {
 
   int Bind(const Node& node, int max_retry) override {
     receiver_ = zmq_socket(context_, ZMQ_ROUTER);
-    CHECK(receiver_ != NULL)
+    DMLC_CHECK(receiver_ != NULL)
         << "create receiver socket failed: " << zmq_strerror(errno);
     int local = GetEnv("DMLC_LOCAL", 0);
     std::string hostname = node.hostname.empty() ? "*" : node.hostname;
@@ -91,9 +91,9 @@ class ZMQVan : public Van {
   }
 
   void Connect(const Node& node) override {
-    CHECK_NE(node.id, node.kEmpty);
-    CHECK_NE(node.port, node.kEmpty);
-    CHECK(node.hostname.size());
+    DMLC_CHECK_NE(node.id, node.kEmpty);
+    DMLC_CHECK_NE(node.port, node.kEmpty);
+    DMLC_CHECK(node.hostname.size());
     int id = node.id;
     auto it = senders_.find(id);
     if (it != senders_.end()) {
@@ -104,7 +104,7 @@ class ZMQVan : public Van {
       return;
     }
     void *sender = zmq_socket(context_, ZMQ_DEALER);
-    CHECK(sender != NULL)
+    DMLC_CHECK(sender != NULL)
         << zmq_strerror(errno)
         << ". it often can be solved by \"sudo ulimit -n 65536\""
         << " or edit /etc/security/limits.conf";
@@ -123,7 +123,7 @@ class ZMQVan : public Van {
       addr = "ipc:///tmp/" + std::to_string(node.port);
     }
     if (zmq_connect(sender, addr.c_str()) != 0) {
-      LOG(FATAL) <<  "connect to " + addr + " failed: " + zmq_strerror(errno);
+      DMLC_LOG(FATAL) << "connect to " + addr + " failed: " + zmq_strerror(errno);
     }
     senders_[id] = sender;
   }
@@ -132,10 +132,10 @@ class ZMQVan : public Van {
     std::lock_guard<std::mutex> lk(mu_);
     // find the socket
     int id = msg.meta.recver;
-    CHECK_NE(id, Meta::kEmpty);
+    DMLC_CHECK_NE(id, Meta::kEmpty);
     auto it = senders_.find(id);
     if (it == senders_.end()) {
-      LOG(WARNING) << "there is no socket to node " << id;
+      DMLC_LOG(WARNING) << "there is no socket to node " << id;
       return -1;
     }
     void *socket = it->second;
@@ -165,9 +165,9 @@ class ZMQVan : public Van {
       while (true) {
         if (zmq_msg_send(&data_msg, socket, tag) == data_size) break;
         if (errno == EINTR) continue;
-        LOG(WARNING) << "failed to send message to node [" << id
-                     << "] errno: " << errno << " " << zmq_strerror(errno)
-                     << ". " << i << "/" << n;
+        DMLC_LOG(WARNING) << "failed to send message to node [" << id
+                          << "] errno: " << errno << " " << zmq_strerror(errno)
+                          << ". " << i << "/" << n;
         return -1;
       }
       // zmq_msg_close(&data_msg);
@@ -181,18 +181,18 @@ class ZMQVan : public Van {
     size_t recv_bytes = 0;
     for (int i = 0; ; ++i) {
       zmq_msg_t* zmsg = new zmq_msg_t;
-      CHECK(zmq_msg_init(zmsg) == 0) << zmq_strerror(errno);
+      DMLC_CHECK(zmq_msg_init(zmsg) == 0) << zmq_strerror(errno);
       while (true) {
         if (zmq_msg_recv(zmsg, receiver_, 0) != -1) break;
         if (errno == EINTR) {
           std::cout << "interrupted";
           continue;
         }
-        LOG(WARNING) << "failed to receive message. errno: "
-                     << errno << " " << zmq_strerror(errno);
+        DMLC_LOG(WARNING) << "failed to receive message. errno: "
+                          << errno << " " << zmq_strerror(errno);
         return -1;
       }
-      char* buf = CHECK_NOTNULL((char *)zmq_msg_data(zmsg));
+      char* buf = DMLC_CHECK_NOTNULL((char *)zmq_msg_data(zmsg));
       size_t size = zmq_msg_size(zmsg);
       recv_bytes += size;
 
@@ -200,7 +200,7 @@ class ZMQVan : public Van {
         // identify
         msg->meta.sender = GetNodeID(buf, size);
         msg->meta.recver = my_node_.id;
-        CHECK(zmq_msg_more(zmsg));
+        DMLC_CHECK(zmq_msg_more(zmsg));
         zmq_msg_close(zmsg);
         delete zmsg;
       } else if (i == 1) {

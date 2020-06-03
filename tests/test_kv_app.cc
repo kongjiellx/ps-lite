@@ -56,8 +56,8 @@ void RunWorker() {
     res += std::fabs(rets[i] - vals[i] * repeat);
     res2 += std::fabs(outs[i] - vals[i] * 2 * repeat);
   }
-  CHECK_LT(res / repeat, 1e-5);
-  CHECK_LT(res2 / (2 * repeat), 1e-5);
+  DMLC_CHECK_LT(res / repeat, 1e-5);
+  DMLC_CHECK_LT(res2 / (2 * repeat), 1e-5);
   LL << "error: " << res / repeat << ", " << res2 / (2 * repeat);
 }
 

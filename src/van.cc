@@ -36,7 +36,7 @@ Van* Van::Create(const std::string& type) {
     return new IBVerbsVan();
 #endif
   } else {
-    LOG(FATAL) << "Unsupported van type: " << type;
+    DMLC_LOG(FATAL) << "Unsupported van type: " << type;
     return nullptr;
   }
 }
@@ -63,7 +63,7 @@ void Van::ProcessAddNodeCommandAtScheduler(Message* msg, Meta* nodes,
       std::string node_host_ip =
           node.hostname + ":" + std::to_string(node.port);
       if (connected_nodes_.find(node_host_ip) == connected_nodes_.end()) {
-        CHECK_EQ(node.id, Node::kEmpty);
+        DMLC_CHECK_EQ(node.id, Node::kEmpty);
         int id = node.role == Node::SERVER
                      ? Postoffice::ServerRankToID(num_servers_)
                      : Postoffice::WorkerRankToID(num_workers_);
@@ -101,7 +101,7 @@ void Van::ProcessAddNodeCommandAtScheduler(Message* msg, Meta* nodes,
     auto dead_nodes = Postoffice::Get()->GetDeadNodes(heartbeat_timeout_);
     std::unordered_set<int> dead_set(dead_nodes.begin(), dead_nodes.end());
     // send back the recovery node
-    CHECK_EQ(recovery_nodes->control.node.size(), 1);
+    DMLC_CHECK_EQ(recovery_nodes->control.node.size(), 1);
     Connect(recovery_nodes->control.node[0]);
     Postoffice::Get()->UpdateHeartbeat(recovery_nodes->control.node[0].id, t);
     Message back;
@@ -129,13 +129,13 @@ void Van::UpdateLocalID(Message* msg, std::unordered_set<int>* deadnodes_set,
       Postoffice::Get()->num_servers() + Postoffice::Get()->num_workers();
   // assign an id
   if (msg->meta.sender == Meta::kEmpty) {
-    CHECK(is_scheduler_);
-    CHECK_EQ(ctrl.node.size(), 1);
+    DMLC_CHECK(is_scheduler_);
+    DMLC_CHECK_EQ(ctrl.node.size(), 1);
     if (nodes->control.node.size() < num_nodes) {
       nodes->control.node.push_back(ctrl.node[0]);
     } else {
       // some node dies and restarts
-      CHECK(ready_.load());
+      DMLC_CHECK(ready_.load());
       for (size_t i = 0; i < nodes->control.node.size() - 1; ++i) {
         const auto& node = nodes->control.node[i];
         if (deadnodes_set->find(node.id) != deadnodes_set->end() &&
@@ -222,15 +222,15 @@ void Van::ProcessBarrierCommand(Message* msg) {
 
 void Van::ProcessDataMsg(Message* msg) {
   // data msg
-  CHECK_NE(msg->meta.sender, Meta::kEmpty);
-  CHECK_NE(msg->meta.recver, Meta::kEmpty);
-  CHECK_NE(msg->meta.app_id, Meta::kEmpty);
+  DMLC_CHECK_NE(msg->meta.sender, Meta::kEmpty);
+  DMLC_CHECK_NE(msg->meta.recver, Meta::kEmpty);
+  DMLC_CHECK_NE(msg->meta.app_id, Meta::kEmpty);
   int app_id = msg->meta.app_id;
   int customer_id =
       Postoffice::Get()->is_worker() ? msg->meta.customer_id : app_id;
   auto* obj = Postoffice::Get()->GetCustomer(app_id, customer_id, 5);
-  CHECK(obj) << "timeout (5 sec) to wait App " << app_id << " customer "
-             << customer_id << " ready at " << my_node_.role;
+  DMLC_CHECK(obj) << "timeout (5 sec) to wait App " << app_id << " customer "
+                  << customer_id << " ready at " << my_node_.role;
   obj->Accept(*msg);
 }
 
@@ -265,9 +265,9 @@ void Van::Start(int customer_id) {
 
   if (init_stage == 0) {
     scheduler_.hostname = std::string(
-        CHECK_NOTNULL(Environment::Get()->find("DMLC_PS_ROOT_URI")));
+            DMLC_CHECK_NOTNULL(Environment::Get()->find("DMLC_PS_ROOT_URI")));
     scheduler_.port =
-        atoi(CHECK_NOTNULL(Environment::Get()->find("DMLC_PS_ROOT_PORT")));
+        atoi(DMLC_CHECK_NOTNULL(Environment::Get()->find("DMLC_PS_ROOT_PORT")));
     scheduler_.role = Node::SCHEDULER;
     scheduler_.id = kScheduler;
     is_scheduler_ = Postoffice::Get()->is_scheduler();
@@ -289,13 +289,13 @@ void Van::Start(int customer_id) {
         } else {
           GetAvailableInterfaceAndIP(&interface, &ip);
         }
-        CHECK(!interface.empty()) << "failed to get the interface";
+        DMLC_CHECK(!interface.empty()) << "failed to get the interface";
       }
       int port = GetAvailablePort();
       const char* pstr = Environment::Get()->find("PORT");
       if (pstr) port = atoi(pstr);
-      CHECK(!ip.empty()) << "failed to get ip";
-      CHECK(port) << "failed to get a port";
+      DMLC_CHECK(!ip.empty()) << "failed to get ip";
+      DMLC_CHECK(port) << "failed to get a port";
       my_node_.hostname = ip;
       my_node_.role = role;
       my_node_.port = port;
@@ -308,7 +308,7 @@ void Van::Start(int customer_id) {
     // bind.
     my_node_.port = Bind(my_node_, is_scheduler_ ? 0 : 40);
     PS_VLOG(1) << "Bind to " << my_node_.DebugString();
-    CHECK_NE(my_node_.port, -1) << "bind failed";
+    DMLC_CHECK_NE(my_node_.port, -1) << "bind failed";
 
     // connect to the scheduler
     Connect(scheduler_);
@@ -371,7 +371,7 @@ void Van::Stop() {
   // only customer 0 would call this method
   exit.meta.customer_id = 0;
   int ret = SendMsg(exit);
-  CHECK_NE(ret, -1);
+  DMLC_CHECK_NE(ret, -1);
   receiver_thread_->join();
   init_stage = 0;
   if (!is_scheduler_) heartbeat_thread_->join();
@@ -387,7 +387,7 @@ void Van::Stop() {
 
 int Van::Send(const Message& msg) {
   int send_bytes = SendMsg(msg);
-  CHECK_NE(send_bytes, -1);
+  DMLC_CHECK_NE(send_bytes, -1);
   send_bytes_ += send_bytes;
   if (resender_) resender_->AddOutgoing(msg);
   if (Postoffice::Get()->verbose() >= 2) {
@@ -408,12 +408,12 @@ void Van::Receiving() {
     if (ready_.load() && drop_rate_ > 0) {
       unsigned seed = time(NULL) + my_node_.id;
       if (rand_r(&seed) % 100 < drop_rate_) {
-        LOG(WARNING) << "Drop message " << msg.DebugString();
+        DMLC_LOG(WARNING) << "Drop message " << msg.DebugString();
         continue;
       }
     }
 
-    CHECK_NE(recv_bytes, -1);
+    DMLC_CHECK_NE(recv_bytes, -1);
     recv_bytes_ += recv_bytes;
     if (Postoffice::Get()->verbose() >= 2) {
       PS_VLOG(2) << msg.DebugString();
@@ -434,7 +434,7 @@ void Van::Receiving() {
       } else if (ctrl.cmd == Control::HEARTBEAT) {
         ProcessHearbeat(&msg);
       } else {
-        LOG(WARNING) << "Drop unknown typed message " << msg.DebugString();
+        DMLC_LOG(WARNING) << "Drop unknown typed message " << msg.DebugString();
       }
     } else {
       ProcessDataMsg(&msg);
@@ -510,14 +510,14 @@ void Van::PackMeta(const Meta& meta, char** meta_buf, int* buf_size) {
   // to string
   *buf_size = pb.ByteSize();
   *meta_buf = new char[*buf_size + 1];
-  CHECK(pb.SerializeToArray(*meta_buf, *buf_size))
+  DMLC_CHECK(pb.SerializeToArray(*meta_buf, *buf_size))
       << "failed to serialize protbuf";
 }
 
 void Van::UnpackMeta(const char* meta_buf, int buf_size, Meta* meta) {
   // to protobuf
   PBMeta pb;
-  CHECK(pb.ParseFromArray(meta_buf, buf_size))
+  DMLC_CHECK(pb.ParseFromArray(meta_buf, buf_size))
       << "failed to parse string into protobuf";
 
   // to meta

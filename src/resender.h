@@ -35,7 +35,7 @@ class Resender {
    */
   void AddOutgoing(const Message& msg) {
     if (msg.meta.control.cmd == Control::ACK) return;
-    CHECK_NE(msg.meta.timestamp, Meta::kEmpty) << msg.DebugString();
+    DMLC_CHECK_NE(msg.meta.timestamp, Meta::kEmpty) << msg.DebugString();
     auto key = GetKey(msg);
     std::lock_guard<std::mutex> lk(mu_);
     // already buffered, which often due to call Send by the monitor thread
@@ -77,7 +77,7 @@ class Resender {
       ack.meta.control.msg_sig = key;
       van_->Send(ack);
       // warning
-      if (duplicated) LOG(WARNING) << "Duplicated message: " << msg.DebugString();
+      if (duplicated) DMLC_LOG(WARNING) << "Duplicated message: " << msg.DebugString();
       return duplicated;
     }
   }
@@ -93,7 +93,7 @@ class Resender {
   std::unordered_map<uint64_t, Entry> send_buff_;
 
   uint64_t GetKey(const Message& msg) {
-    CHECK_NE(msg.meta.timestamp, Meta::kEmpty) << msg.DebugString();
+    DMLC_CHECK_NE(msg.meta.timestamp, Meta::kEmpty) << msg.DebugString();
     uint16_t id = msg.meta.app_id;
     uint8_t sender = msg.meta.sender == Node::kEmpty ?
                      van_->my_node().id : msg.meta.sender;
@@ -118,10 +118,10 @@ class Resender {
         if (it.second.send + Time(timeout_) * (1+it.second.num_retry) < now) {
           resend.push_back(it.second.msg);
           ++it.second.num_retry;
-          LOG(WARNING) << van_->my_node().ShortDebugString()
-                       << ": Timeout to get the ACK message. Resend (retry="
-                       << it.second.num_retry << ") " << it.second.msg.DebugString();
-          CHECK_LT(it.second.num_retry, max_num_retry_);
+          DMLC_LOG(WARNING) << van_->my_node().ShortDebugString()
+                            << ": Timeout to get the ACK message. Resend (retry="
+                            << it.second.num_retry << ") " << it.second.msg.DebugString();
+          DMLC_CHECK_LT(it.second.num_retry, max_num_retry_);
         }
       }
       mu_.unlock();

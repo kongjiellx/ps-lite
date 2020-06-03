@@ -17,11 +17,11 @@ void Postoffice::InitEnvironment() {
   const char* val = NULL;
   std::string van_type = GetEnv("DMLC_PS_VAN_TYPE", "zmq");
   van_ = Van::Create(van_type);
-  val = CHECK_NOTNULL(Environment::Get()->find("DMLC_NUM_WORKER"));
+  val = DMLC_CHECK_NOTNULL(Environment::Get()->find("DMLC_NUM_WORKER"));
   num_workers_ = atoi(val);
-  val =  CHECK_NOTNULL(Environment::Get()->find("DMLC_NUM_SERVER"));
+  val =  DMLC_CHECK_NOTNULL(Environment::Get()->find("DMLC_NUM_SERVER"));
   num_servers_ = atoi(val);
-  val = CHECK_NOTNULL(Environment::Get()->find("DMLC_ROLE"));
+  val = DMLC_CHECK_NOTNULL(Environment::Get()->find("DMLC_ROLE"));
   std::string role(val);
   is_worker_ = role == "worker";
   is_server_ = role == "server";
@@ -100,11 +100,11 @@ void Postoffice::Finalize(const int customer_id, const bool do_barrier) {
 
 void Postoffice::AddCustomer(Customer* customer) {
   std::lock_guard<std::mutex> lk(mu_);
-  int app_id = CHECK_NOTNULL(customer)->app_id();
+  int app_id = DMLC_CHECK_NOTNULL(customer)->app_id();
   // check if the customer id has existed
-  int customer_id = CHECK_NOTNULL(customer)->customer_id();
-  CHECK_EQ(customers_[app_id].count(customer_id), (size_t) 0) << "customer_id " \
-    << customer_id << " already exists\n";
+  int customer_id = DMLC_CHECK_NOTNULL(customer)->customer_id();
+  DMLC_CHECK_EQ(customers_[app_id].count(customer_id), (size_t) 0) << "customer_id " \
+ << customer_id << " already exists\n";
   customers_[app_id].insert(std::make_pair(customer_id, customer));
   std::unique_lock<std::mutex> ulk(barrier_mu_);
   barrier_done_[app_id].insert(std::make_pair(customer_id, false));
@@ -113,8 +113,8 @@ void Postoffice::AddCustomer(Customer* customer) {
 
 void Postoffice::RemoveCustomer(Customer* customer) {
   std::lock_guard<std::mutex> lk(mu_);
-  int app_id = CHECK_NOTNULL(customer)->app_id();
-  int customer_id = CHECK_NOTNULL(customer)->customer_id();
+  int app_id = DMLC_CHECK_NOTNULL(customer)->app_id();
+  int customer_id = DMLC_CHECK_NOTNULL(customer)->customer_id();
   customers_[app_id].erase(customer_id);
   if (customers_[app_id].empty()) {
     customers_.erase(app_id);
@@ -143,11 +143,11 @@ void Postoffice::Barrier(int customer_id, int node_group) {
   if (GetNodeIDs(node_group).size() <= 1) return;
   auto role = van_->my_node().role;
   if (role == Node::SCHEDULER) {
-    CHECK(node_group & kScheduler);
+    DMLC_CHECK(node_group & kScheduler);
   } else if (role == Node::WORKER) {
-    CHECK(node_group & kWorkerGroup);
+    DMLC_CHECK(node_group & kWorkerGroup);
   } else if (role == Node::SERVER) {
-    CHECK(node_group & kServerGroup);
+    DMLC_CHECK(node_group & kServerGroup);
   }
 
   std::unique_lock<std::mutex> ulk(barrier_mu_);
@@ -180,7 +180,7 @@ const std::vector<Range>& Postoffice::GetServerKeyRanges() {
 }
 
 void Postoffice::Manage(const Message& recv) {
-  CHECK(!recv.meta.control.empty());
+  DMLC_CHECK(!recv.meta.control.empty());
   const auto& ctrl = recv.meta.control;
   if (ctrl.cmd == Control::BARRIER && !recv.meta.request) {
     barrier_mu_.lock();

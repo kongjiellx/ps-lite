@@ -65,7 +65,7 @@ class Postoffice {
    */
   const std::vector<int>& GetNodeIDs(int node_id) const {
     const auto it = node_ids_.find(node_id);
-    CHECK(it != node_ids_.cend()) << "node " << node_id << " doesn't exist";
+    DMLC_CHECK(it != node_ids_.cend()) << "node " << node_id << " doesn't exist";
     return it->second;
   }
   /**

@@ -198,11 +198,11 @@ class KVWorker : public SimpleApp {
                int cmd = 0,
                const Callback& cb = nullptr,
                int priority = 0) {
-    CHECK_NOTNULL(outs);
+    DMLC_CHECK_NOTNULL(outs);
     if (outs->empty())
       outs->resize(vals.size());
     else
-      CHECK_EQ(vals.size(), outs->size());
+      DMLC_CHECK_EQ(vals.size(), outs->size());
 
     SArray<Key> skeys(keys);
     SArray<Val> svals(vals);
@@ -320,7 +320,7 @@ class KVWorker : public SimpleApp {
    * \brief set a user-defined slicer
    */
   void set_slicer(const Slicer& slicer) {
-    CHECK(slicer); slicer_ = slicer;
+    DMLC_CHECK(slicer); slicer_ = slicer;
   }
 
  private:
@@ -415,7 +415,7 @@ class KVServer : public SimpleApp {
                                        const KVPairs<Val>& req_data,
                                        KVServer* server)>;
   void set_request_handle(const ReqHandle& request_handle) {
-    CHECK(request_handle) << "invalid request handle";
+    DMLC_CHECK(request_handle) << "invalid request handle";
     request_handle_ = request_handle;
   }
 
@@ -444,7 +444,7 @@ struct KVServerDefaultHandle {
     size_t n = req_data.keys.size();
     KVPairs<Val> res;
     if (!req_meta.pull) {
-      CHECK_EQ(n, req_data.vals.size());
+      DMLC_CHECK_EQ(n, req_data.vals.size());
     } else {
       res.keys = req_data.keys; res.vals.resize(n);
     }
@@ -480,16 +480,16 @@ void KVServer<Val>::Process(const Message& msg) {
   KVPairs<Val> data;
   int n = msg.data.size();
   if (n) {
-    CHECK_GE(n, 2);
+    DMLC_CHECK_GE(n, 2);
     data.keys = msg.data[0];
     data.vals = msg.data[1];
     if (n > 2) {
-      CHECK_EQ(n, 3);
+      DMLC_CHECK_EQ(n, 3);
       data.lens = msg.data[2];
-      CHECK_EQ(data.lens.size(), data.keys.size());
+      DMLC_CHECK_EQ(data.lens.size(), data.keys.size());
     }
   }
-  CHECK(request_handle_);
+  DMLC_CHECK(request_handle_);
   request_handle_(meta, data, this);
 }
 
@@ -530,7 +530,7 @@ void KVWorker<Val>::DefaultSlicer(
       pos[0] = std::lower_bound(begin, end, ranges[0].begin()) - begin;
       begin += pos[0];
     } else {
-      CHECK_EQ(ranges[i-1].end(), ranges[i].begin());
+      DMLC_CHECK_EQ(ranges[i-1].end(), ranges[i].begin());
     }
     size_t len = std::lower_bound(begin, end, ranges[i].end()) - begin;
     begin += len;
@@ -539,16 +539,16 @@ void KVWorker<Val>::DefaultSlicer(
     // don't send it to servers for empty kv
     sliced->at(i).first = (len != 0);
   }
-  CHECK_EQ(pos[n], send.keys.size());
+  DMLC_CHECK_EQ(pos[n], send.keys.size());
   if (send.keys.empty()) return;
 
   // the length of value
   size_t k = 0, val_begin = 0, val_end = 0;
   if (send.lens.empty()) {
     k = send.vals.size() / send.keys.size();
-    CHECK_EQ(k * send.keys.size(), send.vals.size());
+    DMLC_CHECK_EQ(k * send.keys.size(), send.vals.size());
   } else {
-    CHECK_EQ(send.keys.size(), send.lens.size());
+    DMLC_CHECK_EQ(send.keys.size(), send.lens.size());
   }
 
   // slice
@@ -621,7 +621,7 @@ void KVWorker<Val>::Process(const Message& msg) {
   // store the data for pulling
   int ts = msg.meta.timestamp;
   if (msg.meta.pull) {
-    CHECK_GE(msg.data.size(), (size_t)2);
+    DMLC_CHECK_GE(msg.data.size(), (size_t)2);
     KVPairs<Val> kvs;
     kvs.keys = msg.data[0];
     kvs.vals = msg.data[1];
@@ -645,7 +645,7 @@ void KVWorker<Val>::RunCallback(int timestamp) {
   if (it != callbacks_.end()) {
     mu_.unlock();
 
-    CHECK(it->second);
+    DMLC_CHECK(it->second);
     it->second();
 
     mu_.lock();
@@ -669,24 +669,24 @@ int KVWorker<Val>::AddPullCB(
       size_t total_key = 0, total_val = 0;
       for (const auto& s : kvs) {
         Range range = FindRange(keys, s.keys.front(), s.keys.back()+1);
-        CHECK_EQ(range.size(), s.keys.size())
+        DMLC_CHECK_EQ(range.size(), s.keys.size())
             << "unmatched keys size from one server";
-        if (lens) CHECK_EQ(s.lens.size(), s.keys.size());
+        if (lens) DMLC_CHECK_EQ(s.lens.size(), s.keys.size());
         total_key += s.keys.size();
         total_val += s.vals.size();
       }
-      CHECK_EQ(total_key, keys.size()) << "lost some servers?";
+      DMLC_CHECK_EQ(total_key, keys.size()) << "lost some servers?";
 
       // fill vals and lens
       std::sort(kvs.begin(), kvs.end(), [](
           const KVPairs<Val>& a, const KVPairs<Val>& b) {
                   return a.keys.front() < b.keys.front();
         });
-      CHECK_NOTNULL(vals);
+      DMLC_CHECK_NOTNULL(vals);
       if (vals->empty()) {
         vals->resize(total_val);
       } else {
-        CHECK_EQ(vals->size(), total_val);
+        DMLC_CHECK_EQ(vals->size(), total_val);
       }
       Val* p_vals = vals->data();
       int *p_lens = nullptr;
@@ -694,7 +694,7 @@ int KVWorker<Val>::AddPullCB(
         if (lens->empty()) {
           lens->resize(keys.size());
         } else {
-          CHECK_EQ(lens->size(), keys.size());
+          DMLC_CHECK_EQ(lens->size(), keys.size());
         }
         p_lens = lens->data();
       }
