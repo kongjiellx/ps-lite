@@ -1,13 +1,23 @@
 # Install dependencies
 
+# # protobuf
+# PROTOBUF = ${DEPS_PATH}/include/google/protobuf/message.h
+# ${PROTOBUF}:
+	# $(eval FILE=third_party/protobuf-cpp-3.8.0.tar.gz)
+	# $(eval DIR=protobuf-3.8.0)
+	# rm -rf $(DIR)
+	# tar --no-same-owner -zxf $(FILE)
+	# cd $(DIR) && export CFLAGS=-fPIC && export CXXFLAGS=-fPIC && ./configure -prefix=$(DEPS_PATH) && $(MAKE) && $(MAKE) install
+   #  rm -rf $(DIR)
+
 # protobuf
 PROTOBUF = ${DEPS_PATH}/include/google/protobuf/message.h
 ${PROTOBUF}:
-	$(eval FILE=third_party/protobuf-cpp-3.8.0.tar.gz)
-	$(eval DIR=protobuf-3.8.0)
+	$(eval FILE=third_party/310ba5ee72661c081129eb878c1bbcec936b20f0.tar.gz)
+	$(eval DIR=protobuf-310ba5ee72661c081129eb878c1bbcec936b20f0)
 	rm -rf $(DIR)
 	tar --no-same-owner -zxf $(FILE)
-	cd $(DIR) && export CFLAGS=-fPIC && export CXXFLAGS=-fPIC && ./configure -prefix=$(DEPS_PATH) && $(MAKE) && $(MAKE) install
+	cd $(DIR) && ./autogen.sh && export CFLAGS=-fPIC && export CXXFLAGS=-fPIC && ./configure -prefix=$(DEPS_PATH) && $(MAKE) && $(MAKE) install
 	rm -rf $(DIR)
 
 # zmq
